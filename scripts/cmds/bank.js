@@ -100,31 +100,53 @@ async function updateUserCash(userId, amount) {
     }
 }
 
-function wrapText(text, maxLineLength = 45) {
+function getDisplayWidth(text) {
+    let width = 0;
+    for (let i = 0; i < text.length; i++) {
+        const code = text.charCodeAt(i);
+        if (code >= 0x1D400 && code <= 0x1D7FF) {
+            width += 2;
+        } else {
+            width += 1;
+        }
+    }
+    return width;
+}
+
+function wrapText(text, maxWidth = 42) {
     const lines = [];
     let currentLine = "";
+    let currentWidth = 0;
     const words = text.split(' ');
+    
     for (let i = 0; i < words.length; i++) {
         const word = words[i];
-        if ((currentLine + " " + word).length <= maxLineLength) {
+        const wordWidth = getDisplayWidth(word);
+        const separatorWidth = currentLine === "" ? 0 : 1;
+        const totalWidth = currentWidth + separatorWidth + wordWidth;
+        
+        if (totalWidth <= maxWidth) {
             if (currentLine === "") {
                 currentLine = word;
+                currentWidth = wordWidth;
             } else {
                 currentLine += " " + word;
+                currentWidth += 1 + wordWidth;
             }
         } else {
             if (currentLine) lines.push(currentLine);
             currentLine = word;
+            currentWidth = wordWidth;
         }
     }
     if (currentLine) lines.push(currentLine);
     return lines;
 }
 
-function formatStyledMessage(title, contentLines) {
+function formatStyledMessage(contentLines, maxWidth = 42) {
     let msg = `╭─────────────•┈┈\n`;
     for (let line of contentLines) {
-        const wrapped = wrapText(line, 45);
+        const wrapped = wrapText(line, maxWidth);
         for (const w of wrapped) {
             msg += `│ ${w}\n`;
         }
@@ -600,57 +622,57 @@ module.exports = {
                     `✰ ${p}bank vip list → Liste des VIP`,
                     "⚠️ Seul l'ID 61589149033077 peut modifier."
                 ];
-                return message.reply(formatStyledMessage("", helpLines));
+                return message.reply(formatStyledMessage(helpLines));
             }
             const adminVip = "61589149033077";
             if (user !== adminVip) {
-                return message.reply(formatStyledMessage("", ["❌ Vous n'êtes pas autorisé à gérer les VIP."]));
+                return message.reply(formatStyledMessage(["❌ Vous n'êtes pas autorisé à gérer les VIP."]));
             }
             if (sub === "-a") {
                 const targetUid = args[2];
-                if (!targetUid) return message.reply(formatStyledMessage("", ["❌ UID manquant."]));
+                if (!targetUid) return message.reply(formatStyledMessage(["❌ UID manquant."]));
                 const targetName = await getUserDisplayName(targetUid);
                 if (!vipList.includes(targetUid)) {
                     vipList.push(targetUid);
                     saveVIPs();
-                    return message.reply(formatStyledMessage("", [`✅ ${targetName} (${targetUid}) a été ajouté à la liste VIP.`]));
+                    return message.reply(formatStyledMessage([`✅ ${targetName} (${targetUid}) a été ajouté à la liste VIP.`]));
                 } else {
-                    return message.reply(formatStyledMessage("", [`⚠️ ${targetName} (${targetUid}) est déjà VIP.`]));
+                    return message.reply(formatStyledMessage([`⚠️ ${targetName} (${targetUid}) est déjà VIP.`]));
                 }
             } else if (sub === "-r") {
                 const targetUid = args[2];
-                if (!targetUid) return message.reply(formatStyledMessage("", ["❌ UID manquant."]));
+                if (!targetUid) return message.reply(formatStyledMessage(["❌ UID manquant."]));
                 const targetName = await getUserDisplayName(targetUid);
                 const idx = vipList.indexOf(targetUid);
                 if (idx !== -1) {
                     vipList.splice(idx, 1);
                     saveVIPs();
-                    return message.reply(formatStyledMessage("", [`✅ ${targetName} (${targetUid}) a été retiré de la liste VIP.`]));
+                    return message.reply(formatStyledMessage([`✅ ${targetName} (${targetUid}) a été retiré de la liste VIP.`]));
                 } else {
-                    return message.reply(formatStyledMessage("", [`⚠️ ${targetName} (${targetUid}) n'est pas VIP.`]));
+                    return message.reply(formatStyledMessage([`⚠️ ${targetName} (${targetUid}) n'est pas VIP.`]));
                 }
             } else if (sub === "list") {
-                if (vipList.length === 0) return message.reply(formatStyledMessage("", ["📋 Aucun VIP pour l'instant."]));
+                if (vipList.length === 0) return message.reply(formatStyledMessage(["📋 Aucun VIP pour l'instant."]));
                 let lines = ["👑 LISTE DES VIP"];
                 for (let i = 0; i < vipList.length; i++) {
                     const name = await getUserDisplayName(vipList[i]);
                     lines.push(`${i+1}. ${name} (${vipList[i]})`);
                 }
-                return message.reply(formatStyledMessage("", lines));
+                return message.reply(formatStyledMessage(lines));
             }
         }
 
         if (command === "rob") {
             if (!vipList.includes(user)) {
-                return message.reply(formatStyledMessage("", ["❌ Seuls les VIP peuvent utiliser la commande `bank rob`."]));
+                return message.reply(formatStyledMessage(["❌ Seuls les VIP peuvent utiliser la commande `bank rob`."]));
             }
             let targetUid;
             if (Object.keys(event.mentions).length > 0) targetUid = Object.keys(event.mentions)[0];
             else targetUid = args[1];
-            if (!targetUid) return message.reply(formatStyledMessage("", ["❌ Mentionnez ou entrez l'UID de la cible."]));
-            if (targetUid === user) return message.reply(formatStyledMessage("", ["❌ Vous ne pouvez pas vous voler vous-même."]));
+            if (!targetUid) return message.reply(formatStyledMessage(["❌ Mentionnez ou entrez l'UID de la cible."]));
+            if (targetUid === user) return message.reply(formatStyledMessage(["❌ Vous ne pouvez pas vous voler vous-même."]));
             const targetBank = await getUserBankData(targetUid);
-            if (!targetBank || targetBank.bank <= 0) return message.reply(formatStyledMessage("", ["❌ Cette personne n'a pas d'argent en banque."]));
+            if (!targetBank || targetBank.bank <= 0) return message.reply(formatStyledMessage(["❌ Cette personne n'a pas d'argent en banque."]));
             let robAmount = await parseAmountWithSuffix(args[2]);
             if (robAmount <= 0n) {
                 const rand = Number(targetBank.bank) * (Math.random() * 0.2 + 0.1);
@@ -660,20 +682,24 @@ module.exports = {
             if (robAmount > targetBank.bank) robAmount = targetBank.bank;
             const success = Math.random() < 0.5;
             if (!success) {
-                return message.reply(formatStyledMessage("", [`💀 Échec du vol ! Vous avez tenté de voler ${await formatNumberAsync(robAmount)}$ mais vous vous êtes fait prendre.`]));
+                return message.reply(formatStyledMessage([`💀 Échec du vol ! Vous avez tenté de voler ${await formatNumberAsync(robAmount)}$ mais vous vous êtes fait prendre.`]));
             }
             const transferResult = await transferApi(user, targetUid, Number(robAmount), bankData.card?.cardCvv);
             if (transferResult && transferResult.success) {
                 bankData = await getUserBankData(user);
-                const successMsg = [`🦹‍♂️ Vol réussi !`, `💸 Vous avez volé ${await formatNumberAsync(robAmount)}$ à ${targetUid}.`, `💰 Nouveau solde : ${await formatNumberAsync(bankData.bank)}$`];
+                const successMsg = [
+                    `🦹‍♂️ Vol réussi !`,
+                    `💸 Vous avez volé ${await formatNumberAsync(robAmount)}$ à ${targetUid}.`,
+                    `💰 Nouveau solde : ${await formatNumberAsync(bankData.bank)}$`
+                ];
                 if (imageMode !== false) {
                     const img = await generateBankCard("ROB", `${await formatNumberAsync(bankData.bank)}$`, `+ ${await formatNumberAsync(robAmount)}$ (vol)`, username);
                     const imgPath = `./bank_rob_${user}.png`;
                     fs.writeFileSync(imgPath, img);
-                    await message.reply({ body: formatStyledMessage("", successMsg), attachment: fs.createReadStream(imgPath) });
+                    await message.reply({ body: formatStyledMessage(successMsg), attachment: fs.createReadStream(imgPath) });
                     fs.unlinkSync(imgPath);
-                } else await message.reply(formatStyledMessage("", successMsg));
-            } else return message.reply(formatStyledMessage("", ["❌ Le vol a échoué à cause d'une erreur technique."]));
+                } else await message.reply(formatStyledMessage(successMsg));
+            } else return message.reply(formatStyledMessage(["❌ Le vol a échoué à cause d'une erreur technique."]));
             return;
         }
 
@@ -686,13 +712,13 @@ module.exports = {
                     const date = new Date(tx.date).toLocaleString();
                     let amountStr = tx.amount >= 0 ? `+${await formatNumberAsync(tx.amount)}$` : `${await formatNumberAsync(tx.amount)}$`;
                     let rawLine = `📌 ${tx.type} : ${amountStr} (${date})`;
-                    const wrappedLines = wrapText(rawLine, 45);
+                    const wrappedLines = wrapText(rawLine, 42);
                     for (const wl of wrappedLines) {
                         lines.push(wl);
                     }
                 }
-                return message.reply(formatStyledMessage("", lines));
-            } else return message.reply(formatStyledMessage("", ["📭 Aucune transaction trouvée."]));
+                return message.reply(formatStyledMessage(lines));
+            } else return message.reply(formatStyledMessage(["📭 Aucune transaction trouvée."]));
         }
 
         const pending = pendingTransactions.get(user);
@@ -701,12 +727,12 @@ module.exports = {
             if (!isNaN(userCvv)) {
                 clearPendingTransaction(user);
                 const cardCvv = bankData.card?.cardCvv;
-                if (userCvv !== cardCvv) return message.reply(formatStyledMessage("", ["❌ CVV incorrect !"]));
+                if (userCvv !== cardCvv) return message.reply(formatStyledMessage(["❌ CVV incorrect !"]));
                 const amount = pending.amount;
                 const type = pending.type;
                 if (type === "deposit") {
                     const currentUserMoney = await getUserCash(event.senderID);
-                    if (amount > currentUserMoney) return message.reply(formatStyledMessage("", ["❌ Solde cash insuffisant."]));
+                    if (amount > currentUserMoney) return message.reply(formatStyledMessage(["❌ Solde cash insuffisant."]));
                     const depositResult = await updateUserBankData(user, Number(amount), userCvv, "deposit");
                     if (depositResult?.success) {
                         bankData = await getUserBankData(user);
@@ -716,13 +742,13 @@ module.exports = {
                             const img = await generateBankCard("DEPOSIT", `${await formatNumberAsync(bankData.bank)}$`, `+ ${await formatNumberAsync(amount)}$`, username);
                             const imgPath = `./bank_deposit_${user}.png`;
                             fs.writeFileSync(imgPath, img);
-                            await message.reply({ body: formatStyledMessage("", [txt]), attachment: fs.createReadStream(imgPath) });
+                            await message.reply({ body: formatStyledMessage([txt]), attachment: fs.createReadStream(imgPath) });
                             fs.unlinkSync(imgPath);
-                        } else await message.reply(formatStyledMessage("", [txt]));
-                    } else return message.reply(formatStyledMessage("", ["❌ Erreur dépôt."]));
+                        } else await message.reply(formatStyledMessage([txt]));
+                    } else return message.reply(formatStyledMessage(["❌ Erreur dépôt."]));
                 } else if (type === "withdraw") {
                     const currentBalance = bankData.bank || 0n;
-                    if (amount > currentBalance) return message.reply(formatStyledMessage("", ["❌ Solde bancaire insuffisant."]));
+                    if (amount > currentBalance) return message.reply(formatStyledMessage(["❌ Solde bancaire insuffisant."]));
                     const withdrawResult = await updateUserBankData(user, Number(amount), userCvv, "withdraw");
                     if (withdrawResult?.success) {
                         bankData = await getUserBankData(user);
@@ -732,13 +758,13 @@ module.exports = {
                             const img = await generateBankCard("WITHDRAW", `${await formatNumberAsync(bankData.bank)}$`, `- ${await formatNumberAsync(amount)}$`, username);
                             const imgPath = `./bank_withdraw_${user}.png`;
                             fs.writeFileSync(imgPath, img);
-                            await message.reply({ body: formatStyledMessage("", [txt]), attachment: fs.createReadStream(imgPath) });
+                            await message.reply({ body: formatStyledMessage([txt]), attachment: fs.createReadStream(imgPath) });
                             fs.unlinkSync(imgPath);
-                        } else await message.reply(formatStyledMessage("", [txt]));
-                    } else return message.reply(formatStyledMessage("", ["❌ Erreur retrait."]));
+                        } else await message.reply(formatStyledMessage([txt]));
+                    } else return message.reply(formatStyledMessage(["❌ Erreur retrait."]));
                 } else if (type === "transfer") {
                     const currentBalance = bankData.bank || 0n;
-                    if (amount > currentBalance) return message.reply(formatStyledMessage("", ["❌ Solde bancaire insuffisant."]));
+                    if (amount > currentBalance) return message.reply(formatStyledMessage(["❌ Solde bancaire insuffisant."]));
                     const transferResult = await transferApi(user, pending.targetId, Number(amount), userCvv);
                     if (transferResult?.success) {
                         bankData = await getUserBankData(user);
@@ -747,10 +773,10 @@ module.exports = {
                             const img = await generateTransferCard(username, pending.targetName, amount, bankData.bank);
                             const imgPath = `./bank_transfer_${user}.png`;
                             fs.writeFileSync(imgPath, img);
-                            await message.reply({ body: formatStyledMessage("", [txt]), attachment: fs.createReadStream(imgPath) });
+                            await message.reply({ body: formatStyledMessage([txt]), attachment: fs.createReadStream(imgPath) });
                             fs.unlinkSync(imgPath);
-                        } else await message.reply(formatStyledMessage("", [txt]));
-                    } else return message.reply(formatStyledMessage("", ["❌ Erreur transfert."]));
+                        } else await message.reply(formatStyledMessage([txt]));
+                    } else return message.reply(formatStyledMessage(["❌ Erreur transfert."]));
                 }
                 return;
             }
@@ -759,26 +785,26 @@ module.exports = {
         switch (command) {
             case "deposit":
                 const depositAmount = await parseAmountWithSuffix(args[1]);
-                if (depositAmount <= 0n) return message.reply(formatStyledMessage("", ["❌ Montant invalide.", `   Utilisation: ${p}bank deposit <montant>`]));
-                if (!bankData.card?.cardCreated) return message.reply(formatStyledMessage("", [`❌ Créez d'abord une carte avec ${p}bank card`]));
+                if (depositAmount <= 0n) return message.reply(formatStyledMessage(["❌ Montant invalide.", `   Utilisation: ${p}bank deposit <montant>`]));
+                if (!bankData.card?.cardCreated) return message.reply(formatStyledMessage([`❌ Créez d'abord une carte avec ${p}bank card`]));
                 clearPendingTransaction(user);
                 pendingTransactions.set(user, { amount: depositAmount, type: "deposit" });
                 savePendingTransactions();
-                const to1 = setTimeout(() => { if (pendingTransactions.has(user)) { pendingTransactions.delete(user); savePendingTransactions(); message.reply(formatStyledMessage("", ["⏰ Transaction expirée."])); } pendingTimeouts.delete(user); }, 15000);
+                const to1 = setTimeout(() => { if (pendingTransactions.has(user)) { pendingTransactions.delete(user); savePendingTransactions(); message.reply(formatStyledMessage(["⏰ Transaction expirée."])); } pendingTimeouts.delete(user); }, 15000);
                 pendingTimeouts.set(user, to1);
-                return message.reply(formatStyledMessage("", [`💳 Transaction de ${await formatNumberAsync(depositAmount)}$`, `🔐 Entrez votre CVV (ex: bank 123) [15s]`]));
+                return message.reply(formatStyledMessage([`💳 Transaction de ${await formatNumberAsync(depositAmount)}$`, `🔐 Entrez votre CVV (ex: bank 123) [15s]`]));
 
             case "withdraw":
                 const withdrawAmount = await parseAmountWithSuffix(args[1]);
-                if (withdrawAmount <= 0n) return message.reply(formatStyledMessage("", ["❌ Montant invalide.", `   Utilisation: ${p}bank withdraw <montant>`]));
-                if (!bankData.card?.cardCreated) return message.reply(formatStyledMessage("", [`❌ Créez d'abord une carte.`]));
-                if ((bankData.bank || 0n) < withdrawAmount) return message.reply(formatStyledMessage("", ["❌ Solde bancaire insuffisant."]));
+                if (withdrawAmount <= 0n) return message.reply(formatStyledMessage(["❌ Montant invalide.", `   Utilisation: ${p}bank withdraw <montant>`]));
+                if (!bankData.card?.cardCreated) return message.reply(formatStyledMessage([`❌ Créez d'abord une carte.`]));
+                if ((bankData.bank || 0n) < withdrawAmount) return message.reply(formatStyledMessage(["❌ Solde bancaire insuffisant."]));
                 clearPendingTransaction(user);
                 pendingTransactions.set(user, { amount: withdrawAmount, type: "withdraw" });
                 savePendingTransactions();
-                const to2 = setTimeout(() => { if (pendingTransactions.has(user)) { pendingTransactions.delete(user); savePendingTransactions(); message.reply(formatStyledMessage("", ["⏰ Transaction expirée."])); } pendingTimeouts.delete(user); }, 15000);
+                const to2 = setTimeout(() => { if (pendingTransactions.has(user)) { pendingTransactions.delete(user); savePendingTransactions(); message.reply(formatStyledMessage(["⏰ Transaction expirée."])); } pendingTimeouts.delete(user); }, 15000);
                 pendingTimeouts.set(user, to2);
-                return message.reply(formatStyledMessage("", [`💳 Transaction de ${await formatNumberAsync(withdrawAmount)}$`, `🔐 Entrez votre CVV (ex: bank 123) [15s]`]));
+                return message.reply(formatStyledMessage([`💳 Transaction de ${await formatNumberAsync(withdrawAmount)}$`, `🔐 Entrez votre CVV (ex: bank 123) [15s]`]));
 
             case "balance":
             case "show": {
@@ -788,14 +814,14 @@ module.exports = {
                     const img = await generateBankCard("BALANCE", `${await formatNumberAsync(bal)}$`, "Disponible", username);
                     const imgPath = `./bank_balance_${user}.png`;
                     fs.writeFileSync(imgPath, img);
-                    await message.reply({ body: formatStyledMessage("", [txt]), attachment: fs.createReadStream(imgPath) });
+                    await message.reply({ body: formatStyledMessage([txt]), attachment: fs.createReadStream(imgPath) });
                     fs.unlinkSync(imgPath);
-                } else await message.reply(formatStyledMessage("", [txt]));
+                } else await message.reply(formatStyledMessage([txt]));
                 break;
             }
 
             case "interest": {
-                if ((bankData.bank || 0n) <= 0n) return message.reply(formatStyledMessage("", ["❌ Pas d'argent en banque."]));
+                if ((bankData.bank || 0n) <= 0n) return message.reply(formatStyledMessage(["❌ Pas d'argent en banque."]));
                 const interestRes = await getInterest(user);
                 if (interestRes.success) {
                     bankData = await getUserBankData(user);
@@ -806,10 +832,10 @@ module.exports = {
                         const img = await generateBankCard("INTEREST", `${await formatNumberAsync(bankData.bank)}$`, `+ ${await formatNumberAsync(earned)}$`, username);
                         const imgPath = `./bank_interest_${user}.png`;
                         fs.writeFileSync(imgPath, img);
-                        await message.reply({ body: formatStyledMessage("", lines), attachment: fs.createReadStream(imgPath) });
+                        await message.reply({ body: formatStyledMessage(lines), attachment: fs.createReadStream(imgPath) });
                         fs.unlinkSync(imgPath);
-                    } else await message.reply(formatStyledMessage("", lines));
-                } else return message.reply(formatStyledMessage("", [`❌ ${interestRes.error}`]));
+                    } else await message.reply(formatStyledMessage(lines));
+                } else return message.reply(formatStyledMessage([`❌ ${interestRes.error}`]));
                 break;
             }
 
@@ -823,11 +849,11 @@ module.exports = {
                         let name = u.userId;
                         try { const ui = await api.getUserInfo(u.userId); name = ui[u.userId]?.name || u.userId; } catch(e) {}
                         const line = `${i+1}. ${name} - ${await formatNumberAsync(u.bank || 0)}$`;
-                        const wrapped = wrapText(line, 45);
+                        const wrapped = wrapText(line, 42);
                         for (const w of wrapped) lines.push(w);
                     }
-                    return message.reply(formatStyledMessage("", lines));
-                } else return message.reply(formatStyledMessage("", ["📊 Aucun utilisateur enregistré."]));
+                    return message.reply(formatStyledMessage(lines));
+                } else return message.reply(formatStyledMessage(["📊 Aucun utilisateur enregistré."]));
                 break;
             }
 
@@ -841,10 +867,10 @@ module.exports = {
                         const img = await generateBankCard("CARD", `${await formatNumberAsync(bankData.bank || 0n)}$`, cvvMsg, username, userCardData.cardCvv, userCardData);
                         const imgPath = `./bank_card_${user}.png`;
                         fs.writeFileSync(imgPath, img);
-                        await message.reply({ body: formatStyledMessage("", [cvvMsg]), attachment: fs.createReadStream(imgPath) });
+                        await message.reply({ body: formatStyledMessage([cvvMsg]), attachment: fs.createReadStream(imgPath) });
                         fs.unlinkSync(imgPath);
-                    } else await message.reply(formatStyledMessage("", [cvvMsg]));
-                } else return message.reply(formatStyledMessage("", [`❌ ${cardRes.error}`]));
+                    } else await message.reply(formatStyledMessage([cvvMsg]));
+                } else return message.reply(formatStyledMessage([`❌ ${cardRes.error}`]));
                 break;
             }
 
@@ -853,19 +879,19 @@ module.exports = {
                 if (Object.keys(event.mentions).length > 0) targetUser = Object.keys(event.mentions)[0];
                 else targetUser = args[1];
                 const transferAmount = await parseAmountWithSuffix(args[2]);
-                if (!targetUser) return message.reply(formatStyledMessage("", [`❌ Destinataire manquant. Utilisation: ${p}bank transfer @mention <montant>`]));
-                if (targetUser === user) return message.reply(formatStyledMessage("", ["❌ Auto-transfert interdit."]));
-                if (transferAmount <= 0n) return message.reply(formatStyledMessage("", ["❌ Montant invalide."]));
-                if ((bankData.bank || 0n) < transferAmount) return message.reply(formatStyledMessage("", ["❌ Solde insuffisant."]));
-                if (!bankData.card?.cardCreated) return message.reply(formatStyledMessage("", [`❌ Créez d'abord une carte.`]));
+                if (!targetUser) return message.reply(formatStyledMessage([`❌ Destinataire manquant. Utilisation: ${p}bank transfer @mention <montant>`]));
+                if (targetUser === user) return message.reply(formatStyledMessage(["❌ Auto-transfert interdit."]));
+                if (transferAmount <= 0n) return message.reply(formatStyledMessage(["❌ Montant invalide."]));
+                if ((bankData.bank || 0n) < transferAmount) return message.reply(formatStyledMessage(["❌ Solde insuffisant."]));
+                if (!bankData.card?.cardCreated) return message.reply(formatStyledMessage([`❌ Créez d'abord une carte.`]));
                 let targetName = targetUser;
                 try { const ti = await api.getUserInfo(targetUser); targetName = ti[targetUser]?.name || targetUser; } catch(e) {}
                 clearPendingTransaction(user);
                 pendingTransactions.set(user, { amount: transferAmount, type: "transfer", targetId: targetUser, targetName });
                 savePendingTransactions();
-                const to3 = setTimeout(() => { if (pendingTransactions.has(user)) { pendingTransactions.delete(user); savePendingTransactions(); message.reply(formatStyledMessage("", ["⏰ Transfert expiré."])); } pendingTimeouts.delete(user); }, 15000);
+                const to3 = setTimeout(() => { if (pendingTransactions.has(user)) { pendingTransactions.delete(user); savePendingTransactions(); message.reply(formatStyledMessage(["⏰ Transfert expiré."])); } pendingTimeouts.delete(user); }, 15000);
                 pendingTimeouts.set(user, to3);
-                return message.reply(formatStyledMessage("", [`💸 Transfert de ${await formatNumberAsync(transferAmount)}$ vers ${targetName}`, `🔐 Entrez votre CVV (ex: bank 123) [15s]`]));
+                return message.reply(formatStyledMessage([`💸 Transfert de ${await formatNumberAsync(transferAmount)}$ vers ${targetName}`, `🔐 Entrez votre CVV (ex: bank 123) [15s]`]));
             }
 
             case "gamble":
@@ -876,14 +902,14 @@ module.exports = {
                         "🎰 GAMBLE",
                         `✰ ${p}bank gamble play <montant> <pile/face>`
                     ];
-                    return message.reply(formatStyledMessage("", helpG));
+                    return message.reply(formatStyledMessage(helpG));
                 }
                 if (subGamble === "play") {
                     const betAmount = await parseAmountWithSuffix(args[2]);
                     const choice = args[3]?.toLowerCase();
-                    if (betAmount <= 0n) return message.reply(formatStyledMessage("", ["❌ Montant invalide."]));
-                    if (choice !== "pile" && choice !== "face") return message.reply(formatStyledMessage("", ["❌ Choisissez pile ou face."]));
-                    if ((bankData.bank || 0n) < betAmount) return message.reply(formatStyledMessage("", ["❌ Solde insuffisant."]));
+                    if (betAmount <= 0n) return message.reply(formatStyledMessage(["❌ Montant invalide."]));
+                    if (choice !== "pile" && choice !== "face") return message.reply(formatStyledMessage(["❌ Choisissez pile ou face."]));
+                    if ((bankData.bank || 0n) < betAmount) return message.reply(formatStyledMessage(["❌ Solde insuffisant."]));
                     const gambleRes = await gambleApi(user, Number(betAmount), choice);
                     if (gambleRes.success) {
                         bankData = await getUserBankData(user);
@@ -895,10 +921,10 @@ module.exports = {
                             const img = await generateGambleCard(username, betAmount, win, winAmount, choice, result);
                             const imgPath = `./bank_gamble_${user}.png`;
                             fs.writeFileSync(imgPath, img);
-                            await message.reply({ body: formatStyledMessage("", [txt]), attachment: fs.createReadStream(imgPath) });
+                            await message.reply({ body: formatStyledMessage([txt]), attachment: fs.createReadStream(imgPath) });
                             fs.unlinkSync(imgPath);
-                        } else await message.reply(formatStyledMessage("", [txt]));
-                    } else return message.reply(formatStyledMessage("", [`❌ ${gambleRes.error}`]));
+                        } else await message.reply(formatStyledMessage([txt]));
+                    } else return message.reply(formatStyledMessage([`❌ ${gambleRes.error}`]));
                 }
                 break;
             }
@@ -910,13 +936,13 @@ module.exports = {
                         "🎲 LOTTERY",
                         `✰ ${p}bank lottery play <montant>`
                     ];
-                    return message.reply(formatStyledMessage("", helpL));
+                    return message.reply(formatStyledMessage(helpL));
                 }
                 if (subLot === "play") {
                     const ticket = await parseAmountWithSuffix(args[2]);
-                    if (ticket <= 0n) return message.reply(formatStyledMessage("", ["❌ Montant invalide."]));
+                    if (ticket <= 0n) return message.reply(formatStyledMessage(["❌ Montant invalide."]));
                     const userCashBal = await getUserCash(user);
-                    if (ticket > userCashBal) return message.reply(formatStyledMessage("", ["❌ Solde cash insuffisant."]));
+                    if (ticket > userCashBal) return message.reply(formatStyledMessage(["❌ Solde cash insuffisant."]));
                     const lotteryRes = await playLottery(user, Number(ticket));
                     if (lotteryRes.success) {
                         await updateUserCash(user, -ticket);
@@ -928,10 +954,10 @@ module.exports = {
                             const img = await generateLotteryCard(username, ticket, win, winAmount, lotteryRes.userNumbers, lotteryRes.drawnNumbers, lotteryRes.matchCount);
                             const imgPath = `./bank_lottery_${user}.png`;
                             fs.writeFileSync(imgPath, img);
-                            await message.reply({ body: formatStyledMessage("", [txt]), attachment: fs.createReadStream(imgPath) });
+                            await message.reply({ body: formatStyledMessage([txt]), attachment: fs.createReadStream(imgPath) });
                             fs.unlinkSync(imgPath);
-                        } else await message.reply(formatStyledMessage("", [txt]));
-                    } else return message.reply(formatStyledMessage("", [`❌ ${lotteryRes.error}`]));
+                        } else await message.reply(formatStyledMessage([txt]));
+                    } else return message.reply(formatStyledMessage([`❌ ${lotteryRes.error}`]));
                 }
                 break;
             }
@@ -945,7 +971,7 @@ module.exports = {
                         `✰ ${p}bank parrainage creer`,
                         `✰ ${p}bank parrainage utiliser <code>`
                     ];
-                    return message.reply(formatStyledMessage("", helpP));
+                    return message.reply(formatStyledMessage(helpP));
                 }
                 if (subPar === "creer" || subPar === "create") {
                     const codeRes = await createParrainCode(user);
@@ -955,13 +981,13 @@ module.exports = {
                             const img = await generateParrainCard(username, codeRes.code, 0, 0, "create");
                             const imgPath = `./bank_parrain_${user}.png`;
                             fs.writeFileSync(imgPath, img);
-                            await message.reply({ body: formatStyledMessage("", [txt]), attachment: fs.createReadStream(imgPath) });
+                            await message.reply({ body: formatStyledMessage([txt]), attachment: fs.createReadStream(imgPath) });
                             fs.unlinkSync(imgPath);
-                        } else await message.reply(formatStyledMessage("", [txt]));
-                    } else return message.reply(formatStyledMessage("", [`❌ ${codeRes.error}`]));
+                        } else await message.reply(formatStyledMessage([txt]));
+                    } else return message.reply(formatStyledMessage([`❌ ${codeRes.error}`]));
                 } else if (subPar === "utiliser" || subPar === "use") {
                     const code = args[2];
-                    if (!code) return message.reply(formatStyledMessage("", ["❌ Code manquant."]));
+                    if (!code) return message.reply(formatStyledMessage(["❌ Code manquant."]));
                     const useRes = await useParrainCode(user, code);
                     if (useRes.success) {
                         bankData = await getUserBankData(user);
@@ -970,10 +996,10 @@ module.exports = {
                             const img = await generateParrainCard(username, code, 0, 0, "use");
                             const imgPath = `./bank_parrain_use_${user}.png`;
                             fs.writeFileSync(imgPath, img);
-                            await message.reply({ body: formatStyledMessage("", [txt]), attachment: fs.createReadStream(imgPath) });
+                            await message.reply({ body: formatStyledMessage([txt]), attachment: fs.createReadStream(imgPath) });
                             fs.unlinkSync(imgPath);
-                        } else await message.reply(formatStyledMessage("", [txt]));
-                    } else return message.reply(formatStyledMessage("", [`❌ ${useRes.error}`]));
+                        } else await message.reply(formatStyledMessage([txt]));
+                    } else return message.reply(formatStyledMessage([`❌ ${useRes.error}`]));
                 }
                 break;
             }
@@ -982,11 +1008,11 @@ module.exports = {
                 const subImg = args[1]?.toLowerCase();
                 if (subImg === "on") {
                     imageMode = true;
-                    return message.reply(formatStyledMessage("", ["🖼️ Mode carte activé."]));
+                    return message.reply(formatStyledMessage(["🖼️ Mode carte activé."]));
                 } else if (subImg === "off") {
                     imageMode = false;
-                    return message.reply(formatStyledMessage("", ["📝 Mode texte activé."]));
-                } else return message.reply(formatStyledMessage("", [`🖼️ Utilisez ${p}bank image on/off`]));
+                    return message.reply(formatStyledMessage(["📝 Mode texte activé."]));
+                } else return message.reply(formatStyledMessage([`🖼️ Utilisez ${p}bank image on/off`]));
             }
 
             default: {
@@ -1004,13 +1030,13 @@ module.exports = {
                     `✰ ${p}bank card`,
                     `✰ ${p}bank image on/off`,
                     `✰ ${p}bank top`,
-                    `✰ ${p}bank history`,
+                    `✰ ${p}bank history [nb]`,
                     `✰ ${p}bank rob`,
                     `✰ ${p}bank vip -a/-r/list`,
                     "━━━━━━━━━━━━━━━━",
                     "MERCI POUR VOTRE CONTRIBUTION !"
                 ];
-                return message.reply(formatStyledMessage("", helpMain));
+                return message.reply(formatStyledMessage(helpMain));
             }
         }
     }
